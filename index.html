@@ -1,0 +1,551 @@
+```html name=index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive House Hunter's Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #4A4A4A;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .nav-button {
+            transition: all 0.3s ease;
+        }
+        .nav-button.active {
+            background-color: #4A5568;
+            color: #FFFFFF;
+        }
+        .property-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .property-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .llm-output-container {
+            max-height: 200px;
+            overflow-y: auto;
+            border-radius: 0.5rem;
+            background-color: #f9fafb;
+            padding: 0.75rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-800">House Hunter's Dashboard</h1>
+            <p class="mt-2 text-lg text-gray-600">Your interactive tool for evaluating and comparing new homes.</p>
+        </header>
+
+        <main>
+            <!-- Navigation -->
+            <div class="flex justify-center mb-8 bg-gray-200 rounded-full p-1 max-w-md mx-auto">
+                 <button id="nav-dashboard" class="nav-button w-full text-center py-2 px-4 rounded-full font-semibold text-gray-700">Dashboard</button>
+                 <button id="nav-analytics" class="nav-button w-full text-center py-2 px-4 rounded-full font-semibold text-gray-700">Analytics</button>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboard-view">
+                <!-- Controls -->
+                <section id="controls" class="mb-8 p-6 bg-white rounded-xl shadow-sm">
+                     <p class="text-xl font-semibold text-gray-800 mb-4">Find Your Perfect Match</p>
+                     <p class="text-gray-600 mb-6">Use the controls below to sort your prospects. Select properties using the checkbox to add them to the detailed comparison table at the bottom. Click the ✨ buttons on each card for AI-powered insights!</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="sort-select" class="block text-sm font-medium text-gray-700 mb-1">Sort Properties By</label>
+                            <select id="sort-select" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="default">Default Order</option>
+                                <option value="price-asc">Asking Price (Low to High)</option>
+                                <option value="price-desc">Asking Price (High to Low)</option>
+                                <option value="rating-desc">Overall Rating (High to Low)</option>
+                                <option value="sqft-desc">Square Footage (Large to Small)</option>
+                                <option value="year-desc">Year Built (Newest First)</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Property Listings -->
+                <section id="property-listings">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Property Listings</h2>
+                    <div id="properties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- Property cards will be injected here by JavaScript -->
+                    </div>
+                </section>
+                
+                <!-- Comparison Table -->
+                <section id="comparison-section" class="mt-12 hidden">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-6">Side-by-Side Comparison</h2>
+                    <div class="overflow-x-auto bg-white rounded-xl shadow-sm">
+                        <table class="w-full text-sm text-left text-gray-600">
+                            <thead id="comparison-head" class="text-xs text-gray-700 uppercase bg-gray-50">
+                                <!-- Comparison headers will be injected here -->
+                            </thead>
+                            <tbody id="comparison-body">
+                                <!-- Comparison rows will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Analytics View -->
+            <div id="analytics-view" class="hidden">
+                 <section id="charts" class="space-y-12">
+                     <div class="p-6 bg-white rounded-xl shadow-sm">
+                         <h3 class="text-xl font-semibold text-gray-800 mb-1">Price vs. Square Footage</h3>
+                         <p class="text-gray-600 mb-4">This chart helps you identify value. Properties above the trend line might be overpriced for their size, while those below could be a great deal.</p>
+                         <div class="chart-container">
+                             <canvas id="price-sqft-chart"></canvas>
+                         </div>
+                     </div>
+                     <div class="p-6 bg-white rounded-xl shadow-sm">
+                         <h3 class="text-xl font-semibold text-gray-800 mb-1">Overall Property Ratings</h3>
+                         <p class="text-gray-600 mb-4">A quick visual overview of how you've rated each property, helping you focus on your top contenders.</p>
+                         <div class="chart-container">
+                             <canvas id="ratings-chart"></canvas>
+                         </div>
+                     </div>
+                 </section>
+            </div>
+        </main>
+
+        <footer class="text-center mt-16 text-gray-500 text-sm">
+            <p>Interactive House Hunter's Dashboard &copy; 2025. Empowering your home buying journey.</p>
+        </footer>
+    </div>
+
+    <script>
+        const propertyData = [
+            {
+                id: 1,
+                name: "Example House 1",
+                address: "Oakwood Estates",
+                dateVisited: "2025-06-23",
+                price: 550000,
+                bedrooms: 3,
+                bathrooms: 2.5,
+                sqft: 1800,
+                lotSize: "0.25 acres",
+                yearBuilt: 1998,
+                features: "Large backyard, updated kitchen",
+                pros: "Great natural light, quiet street",
+                cons: "Small bedrooms, needs new roof",
+                rating: 4,
+                renovationCost: 15000,
+                commuteTime: 20,
+                amenities: "Close to elementary school, 5 min walk to park",
+                notes: "Inspect roof carefully."
+            },
+            {
+                id: 2,
+                name: "Example House 2",
+                address: "Riverbend",
+                dateVisited: "2025-06-24",
+                price: 520000,
+                bedrooms: 4,
+                bathrooms: 3,
+                sqft: 2200,
+                lotSize: "0.18 acres",
+                yearBuilt: 2010,
+                features: "Open concept, two-car garage",
+                pros: "Modern design, good school district",
+                cons: "Busy road, no backyard privacy",
+                rating: 3,
+                renovationCost: 5000,
+                commuteTime: 25,
+                amenities: "Near shopping center, but no public transport",
+                notes: "Basement could be finished later."
+            },
+            {
+                id: 3,
+                name: "The Maples",
+                address: "45 Maple Drive",
+                dateVisited: "2025-06-20",
+                price: 610000,
+                bedrooms: 4,
+                bathrooms: 3.5,
+                sqft: 2400,
+                lotSize: "0.3 acres",
+                yearBuilt: 2018,
+                features: "Finished basement, deck",
+                pros: "New construction, energy efficient",
+                cons: "Smaller yard, higher price",
+                rating: 5,
+                renovationCost: 0,
+                commuteTime: 30,
+                amenities: "Great school district, near community pool",
+                notes: "Move-in ready. Very appealing."
+            }
+        ];
+
+        let state = {
+            sortBy: 'default',
+            comparisonIds: new Set(),
+            activeView: 'dashboard'
+        };
+
+        let charts = {
+            priceSqft: null,
+            ratings: null
+        };
+
+        const formatCurrency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(value);
+
+        const apiKey = ""; 
+
+        async function callGeminiAPI(prompt) {
+            const chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    console.error("Gemini API returned an unexpected structure or no content.", result);
+                    return "Could not generate insights. Please try again.";
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                return "Failed to connect to the AI. Please check your network.";
+            }
+        }
+
+        async function generateInsights(propertyId) {
+            const prop = propertyData.find(p => p.id === propertyId);
+            if (!prop) return;
+
+            const insightsContainer = document.getElementById(`insights-${propertyId}`);
+            const insightsButton = document.getElementById(`insights-btn-${propertyId}`);
+
+            insightsContainer.classList.remove('hidden');
+            insightsContainer.innerHTML = '<div class="text-center py-2 text-gray-500 text-sm">Generating insights...</div>';
+            insightsButton.disabled = true;
+
+            const prompt = `Given the following details about a house, provide a concise summary of its potential strengths (pros) and weaknesses (cons) for a potential buyer. Focus on what makes it appealing or challenging from a general homebuyer perspective. Present the output as an HTML unordered list (<ul><li>...</li></ul>).
+
+            Property Name: ${prop.name}
+            Address/Neighborhood: ${prop.address}
+            Asking Price: ${formatCurrency(prop.price)}
+            Bedrooms: ${prop.bedrooms}
+            Bathrooms: ${prop.bathrooms}
+            Square Footage: ${prop.sqft} sq ft
+            Year Built: ${prop.yearBuilt}
+            Key Features: ${prop.features}
+            Current Pros: ${prop.pros || 'N/A'}
+            Current Cons: ${prop.cons || 'N/A'}
+            Additional Notes: ${prop.notes || 'N/A'}
+            `;
+
+            const resultText = await callGeminiAPI(prompt);
+            insightsContainer.innerHTML = `<div class="p-3 bg-gray-50 rounded-lg text-sm leading-relaxed">${resultText}</div>`;
+            insightsButton.disabled = false;
+        }
+
+        async function generateRenovationIdeas(propertyId) {
+            const prop = propertyData.find(p => p.id === propertyId);
+            if (!prop) return;
+
+            const renovationContainer = document.getElementById(`renovation-${propertyId}`);
+            const renovationButton = document.getElementById(`renovation-btn-${propertyId}`);
+
+            renovationContainer.classList.remove('hidden');
+            renovationContainer.innerHTML = '<div class="text-center py-2 text-gray-500 text-sm">Brainstorming ideas...</div>';
+            renovationButton.disabled = true;
+
+            const prompt = `Based on the following details and potential issues for a house, suggest 3-5 practical renovation ideas that could improve its value or livability. Focus on addressing any "cons" or "notes" provided. Present the output as an HTML unordered list (<ul><li>...</li></ul>).
+
+            Property Name: ${prop.name}
+            Asking Price: ${formatCurrency(prop.price)}
+            Square Footage: ${prop.sqft} sq ft
+            Key Features: ${prop.features}
+            Current Cons: ${prop.cons || 'None specified'}
+            Additional Notes: ${prop.notes || 'None specified'}
+            `;
+
+            const resultText = await callGeminiAPI(prompt);
+            renovationContainer.innerHTML = `<div class="p-3 bg-gray-50 rounded-lg text-sm leading-relaxed">${resultText}</div>`;
+            renovationButton.disabled = false;
+        }
+
+        function renderProperties() {
+            const grid = document.getElementById('properties-grid');
+            grid.innerHTML = '';
+
+            let sortedData = [...propertyData];
+            switch (state.sortBy) {
+                case 'price-asc': sortedData.sort((a, b) => a.price - b.price); break;
+                case 'price-desc': sortedData.sort((a, b) => b.price - a.price); break;
+                case 'rating-desc': sortedData.sort((a, b) => b.rating - a.rating); break;
+                case 'sqft-desc': sortedData.sort((a, b) => b.sqft - a.sqft); break;
+                case 'year-desc': sortedData.sort((a, b) => b.yearBuilt - a.yearBuilt); break;
+            }
+
+            sortedData.forEach(prop => {
+                const card = `
+                    <div class="property-card bg-white rounded-xl shadow-sm overflow-hidden p-6 flex flex-col">
+                        <div class="flex-grow">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-bold text-xl text-gray-800">${prop.name}</p>
+                                    <p class="text-sm text-gray-500">${prop.address}</p>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <input type="checkbox" data-id="${prop.id}" class="compare-checkbox h-5 w-5 rounded text-indigo-600 focus:ring-indigo-500 border-gray-300" ${state.comparisonIds.has(prop.id) ? 'checked' : ''}>
+                                </div>
+                            </div>
+                            <p class="text-2xl font-bold text-indigo-600 my-4">${formatCurrency(prop.price)}</p>
+                            <div class="grid grid-cols-3 gap-4 text-center my-4">
+                                <div>
+                                    <p class="font-semibold text-lg">${prop.bedrooms}</p>
+                                    <p class="text-xs text-gray-500">Beds</p>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-lg">${prop.bathrooms}</p>
+                                    <p class="text-xs text-gray-500">Baths</p>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-lg">${prop.sqft.toLocaleString()}</p>
+                                    <p class="text-xs text-gray-500">sq ft</p>
+                                </div>
+                            </div>
+                            <div class="text-sm text-gray-600 space-y-2">
+                                <p><span class="font-semibold">Rating:</span> ${'&#9733;'.repeat(prop.rating)}${'&#9734;'.repeat(5 - prop.rating)}</p>
+                                <p><span class="font-semibold">Key Features:</span> ${prop.features}</p>
+                            </div>
+                        </div>
+                        <div class="flex justify-center mt-4 space-x-2">
+                            <button id="insights-btn-${prop.id}" class="llm-button flex items-center px-3 py-1 bg-green-500 text-white text-xs font-semibold rounded-full hover:bg-green-600 transition duration-150 ease-in-out">
+                                <span class="mr-1">✨</span> Insights
+                            </button>
+                            <button id="renovation-btn-${prop.id}" class="llm-button flex items-center px-3 py-1 bg-yellow-500 text-white text-xs font-semibold rounded-full hover:bg-yellow-600 transition duration-150 ease-in-out">
+                                <span class="mr-1">✨</span> Renovate
+                            </button>
+                        </div>
+                        <div id="insights-${prop.id}" class="llm-output-container mt-4 hidden"></div>
+                        <div id="renovation-${prop.id}" class="llm-output-container mt-2 hidden"></div>
+                    </div>
+                `;
+                grid.innerHTML += card;
+            });
+            
+            addCheckboxListeners();
+            addLLMButtonListeners();
+        }
+
+        function renderComparisonTable() {
+            const section = document.getElementById('comparison-section');
+            const head = document.getElementById('comparison-head');
+            const body = document.getElementById('comparison-body');
+
+            if (state.comparisonIds.size === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            section.classList.remove('hidden');
+            const comparisonData = propertyData.filter(p => state.comparisonIds.has(p.id));
+
+            let headerHtml = '<tr><th scope="col" class="px-6 py-3">Feature</th>';
+            comparisonData.forEach(p => {
+                headerHtml += `<th scope="col" class="px-6 py-3 text-indigo-700">${p.name}</th>`;
+            });
+            headerHtml += '</tr>';
+            head.innerHTML = headerHtml;
+
+            const rows = [
+                { label: 'Overall Rating (1-5)', key: 'rating' },
+                { label: 'Asking Price', key: 'price', format: formatCurrency },
+                { label: 'Bedrooms', key: 'bedrooms' },
+                { label: 'Bathrooms', key: 'bathrooms' },
+                { label: 'Square Footage', key: 'sqft', format: v => `${v.toLocaleString()} sq ft` },
+                { label: 'Year Built', key: 'yearBuilt' },
+                { label: 'Lot Size', key: 'lotSize' },
+                { label: 'Commute Time (mins)', key: 'commuteTime' },
+                { label: 'Est. Renovation Cost', key: 'renovationCost', format: formatCurrency },
+                { label: 'Pros', key: 'pros' },
+                { label: 'Cons', key: 'cons' },
+                { label: 'Notes', key: 'notes' },
+            ];
+
+            let bodyHtml = '';
+            rows.forEach(row => {
+                bodyHtml += `<tr class="bg-white border-b">
+                                <td scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${row.label}</td>`;
+                comparisonData.forEach(p => {
+                    const value = p[row.key];
+                    const formattedValue = row.format ? row.format(value) : value;
+                    bodyHtml += `<td class="px-6 py-4">${formattedValue}</td>`;
+                });
+                bodyHtml += '</tr>';
+            });
+            body.innerHTML = bodyHtml;
+        }
+
+        function renderCharts() {
+            if (charts.priceSqft) charts.priceSqft.destroy();
+            if (charts.ratings) charts.ratings.destroy();
+
+            const priceSqftCtx = document.getElementById('price-sqft-chart').getContext('2d');
+            charts.priceSqft = new Chart(priceSqftCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Properties',
+                        data: propertyData.map(p => ({ x: p.sqft, y: p.price })),
+                        backgroundColor: 'rgba(79, 70, 229, 0.7)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Square Footage (sq ft)' } },
+                        y: { title: { display: true, text: 'Asking Price ($)' } }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const prop = propertyData.find(p => p.sqft === context.parsed.x && p.price === context.parsed.y);
+                                    return `${prop.name}: ${formatCurrency(context.parsed.y)} for ${context.parsed.x} sq ft`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const ratingsCtx = document.getElementById('ratings-chart').getContext('2d');
+            charts.ratings = new Chart(ratingsCtx, {
+                type: 'bar',
+                data: {
+                    labels: propertyData.map(p => p.name.length > 16 ? p.name.substring(0, 15) + '...' : p.name),
+                    datasets: [{
+                        label: 'Overall Rating (out of 5)',
+                        data: propertyData.map(p => p.rating),
+                        backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                        borderColor: 'rgba(5, 150, 105, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { beginAtZero: true, max: 5, title: { display: true, text: 'Rating' } },
+                        y: { ticks: { autoSkip: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+        
+        function switchView(view) {
+            state.activeView = view;
+            const dashboardView = document.getElementById('dashboard-view');
+            const analyticsView = document.getElementById('analytics-view');
+            const navDashboard = document.getElementById('nav-dashboard');
+            const navAnalytics = document.getElementById('nav-analytics');
+
+            if (view === 'analytics') {
+                dashboardView.classList.add('hidden');
+                analyticsView.classList.remove('hidden');
+                navDashboard.classList.remove('active');
+                navAnalytics.classList.add('active');
+                renderCharts();
+            } else {
+                dashboardView.classList.remove('hidden');
+                analyticsView.classList.add('hidden');
+                navDashboard.classList.add('active');
+                navAnalytics.classList.remove('active');
+            }
+        }
+        
+        function addCheckboxListeners() {
+            document.querySelectorAll('.compare-checkbox').forEach(box => {
+                box.addEventListener('change', (e) => {
+                    const id = parseInt(e.target.dataset.id);
+                    if (e.target.checked) {
+                        state.comparisonIds.add(id);
+                    } else {
+                        state.comparisonIds.delete(id);
+                    }
+                    renderComparisonTable();
+                });
+            });
+        }
+
+        function addLLMButtonListeners() {
+            document.querySelectorAll('.llm-button').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const btn = event.target.closest('button');
+                    if (!btn) return;
+
+                    const propId = parseInt(btn.id.split('-')[2]);
+
+                    if (btn.id.startsWith('insights-btn')) {
+                        generateInsights(propId);
+                    } else if (btn.id.startsWith('renovation-btn')) {
+                        generateRenovationIdeas(propId);
+                    }
+                });
+            });
+        }
+
+        document.getElementById('sort-select').addEventListener('change', (e) => {
+            state.sortBy = e.target.value;
+            renderProperties();
+        });
+        
+        document.getElementById('nav-dashboard').addEventListener('click', () => switchView('dashboard'));
+        document.getElementById('nav-analytics').addEventListener('click', () => switchView('analytics'));
+
+        window.onload = () => {
+            renderProperties();
+            renderComparisonTable();
+            switchView('dashboard');
+        };
+
+    </script>
+</body>
+</html>
+```
+Your `index.html` is now ready! Place this file at the root of your repository to make it the homepage for your project. Let me know if you need help with GitHub Pages setup or deployment!
